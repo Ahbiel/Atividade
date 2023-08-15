@@ -1,0 +1,6 @@
+Criar vpc
+Criar SG
+Criar EFS
+Criar instâncias
+Montagem de diretório EFS
+Criar um RDS

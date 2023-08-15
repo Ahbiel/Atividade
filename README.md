@@ -36,6 +36,46 @@ Para criar um nova VPC, vamos:
 - Vamos habilitar o Gateways NAT em apenas uma AZ (que nesse caso será na **us-east-1a**)
 - Depois vamos em _Criar VPC_
 
+## Criando um Security group na VPC criada
+
+Após a criação da VPC, vamos criar um security groups no qual usaremos nas **instâncias e no EFS**
+
+Vamos na seção **Rede e segurança** dentro dos serviços de EC2 e selecionar **Security groups**
+- Vamos criar um novo security group
+- Vamos Atribuir o nome **Docker_wordpress**, uma descrição, e selecionar a VPC criada.
+- Em regras de entrada, vamos criar as seguintes permissões:
+  - **Tipo:** SSH | **porta:** 22 | **Origem:** Qualquer IPv4 (0.0.0.0/0)
+  - **Tipo:** http | **porta:** 80 | **Origem:** Meu IP
+  - **Tipo:** https | **porta:** 443 | **Origem:** Meu IP
+  - **Tipo:** MYSQL/Aurora | **porta:** 3306 | **Origem:** Qualquer IPv4 (0.0.0.0/0)
+  - **Tipo:** NFS | **porta:** 22 | **Origem:** sg-(security Group Docker_wordpress) 
+
+Como estamos em um ambiente de Testes e estudos, vamos utilizar o SSH para qualquer lugar (não recomendado), o http e o https apenas para o Meu Ip (apenas para estudos), O MySql para qualquer lugar, e o NFS apenas para os recursos que compartilham o mesmo Security group, nesse caso: a Instância e o EFS
+
+## Criando um banco de dados RDS
+
+Para podermos criar a aplicação wordpress, precisamos de um banco de dados configurado, onde faremos isso nos serviços de **RDS** dentro da aws
+
+Passo-à-Passo:
+- Clicar em Criar banco de dados
+- Selecionar o DB **MySql** e depois selecionar "Nivel gratuito" ou "Free tier"
+- Em Identificador da instância de banco de dados vamos colocar **wordpress** 
+- Em Nome do usuário principal vamos colocar **root**
+- Como senha principal, também vamos colocar **wordpress** (não recomendado para ambientes de produção)
+- Em Configuração da instância vamos deixar como db.t3.micro (dentro do free tier)
+- Em Armazenamento, vamos deixar o tamanho por padrão e desabilitar o "Habilitar escalabilidade automática do armazenamento"
+- Em Conectividade, vamos selecionar a opção "Não se conectar a um recurso de computação do EC2", escolher a VPC criada anteriormente, o Acesso público vamos deixar como sim (apenas para essa atividade, porém pode haver a necessidade em um ambiente de produção desabilitar o acesso público), e por fim vamos criar um novo grupo de segurança chamado "RDS_MySql"
+- Em configurações adcionais, vamos colocar **wordpress** como nome do banco de dados inicial, desabilitar "backups automatizados" e "criptografia".
+- Após isso, podemos criar nosso banco de dados
+
+O processo de criação pode levar um tempinho.
+Após criado, é importante que anotemos o **Endpoint** do nosso banco de dados, será importante para acessarmos ela
+
+## Testando nosso banco de dados
+
+Como colocamos nosso banco de dados para acesso público, podemos testa-lo para saber se está funcionando corretamente, usando programas como o **dbeaver-ce** ou outro de sua preferência.
+Para testar, precisamos criar uma nova conexão, selecionar o MySql, e colocar as informações do banco de dados: o Endpoint em "server host", a porta, o nome do banco de dados, o usuário, e a senha.
+
 ## Criando a primeira instância
 
 Agora, dentro da console da AWS, vamos criar uma nova instância seguindo os mesmos passos da **Atividade_1**. A diferença, é que vamos anexar o arquivo update.sh no **user_data** em opções avançadas, e, nesse primeiro momento, vamos habilitar a atribuição automática de ipv4 público à intância, para que possamos acessa-lá via ssh sem a necessidade de atribuir um Elastic IP
@@ -73,7 +113,7 @@ Se executarmos o comando **ls -la** veremos que agora o usuário _ec2-user_ é o
 ## Arquivo docker-compose e configuração do wordpress
 
 Uma vez montado, podemos entrar no diretório compartilhado (cd efs/) e criar um arquivo de configuração do docker-compose para subir uma aplicação wordpress.
-Vamos executar o comando **vim docker-compose.yml** exatamente dessa forma, e criaremos o seguinte código
+Vamos executar o comando **vim docker-compose.yml** exatamente dessa forma, e criaremos o seguinte código:
 
 ```yml
 version: "3.9"
@@ -86,9 +126,17 @@ services:
     ports:
       - 80:80
     restart: always
+    environment:
+      - WORDPRESS_DB_HOST=endpoint
+      - WORDPRESS_DB_USER=root
+      - WORDPRESS_DB_PASSWORD=wordpress
+      - WORDPRESS_DB_NAME=wordpress
 ```
-
 Esse código irá baixar a imagem **wordpress**, anexar o volume efs como diretório estático dentro do container wordpress, e definir a porta 80 para expor a nossa aplicação
+
+As variaveis de ambiente (environment) permitirão que o wordpress acesse o banco de dados, e para isso, a única coisa que preciamos mudar quando formor configurar esse código, é o **WORDPRESS_DB_HOST**, onde colocaremos o endpoint do RDS criado anteriormente
+
+Após a instalação, antes de acessarmos via navegador, podemos ir no dbeaver-ce, selecionar **tabelas**, e veremos que agora, há várias tabelas que o wordpress criou dentro do banco de dados MySql
 
 Depois disso, podemos desconectar dessa instância. 
 
@@ -100,4 +148,19 @@ Para isso, primeiro vamos gerar uma **AMI** da instância que acabamos de criar:
 - Ir em **ações** 
 - Selecionar **imagem e modelos** e depois **criar imagem**
 
-Após isso, na seção **instâncias**, vamos em _modelo de execução_
+Após isso, na seção **instâncias**, vamos em _modelo de execução_ e criar um novo modelo de execução que usaremos no Auto Scaling. Para isso, vamos:
+
+- Atribuir um nome (wordpress) e uma descrição
+- Em **AMIs**, vamos clicar em "Procurar mais AMIs" e então selecionar a AMI criada anteriormente.
+- Tipo de instância vamos colocar **t2.small**
+- Em pares de chaves, vamos selecionar a Chave que criamos na atividade_1 para realizar o acesso via Bastion host
+- Em configurações de rede, vamos selecionar o Grupo de segurança que criamos anteriormente (Docker_wordpress), e em sub-rede, vamos deixar a opção "Não incluir no modelo de execução" (a sub-rede será definida quando formos criar o Auto Scaling).
+- Em tags de recursos, é importante colocar as mesmas tags que colocamos na instância, para termos acesso na hora de criar um Auto Scaling:
+  - **Chave:** Name | **Valor:** PB IFMT - UTFPR | **Tipos de recursos:** anexar instâncias e Volumes
+  - **Chave:** Project | **Valor:** PB IFMT - UTFPR | **Tipos de recursos:** anexar instâncias e Volumes
+  - **Chave:** CostCenter | **Valor:** C092000004 | **Tipos de recursos:** anexar instâncias e Volumes
+- Após isso, vamos criar nosso modelo de execução
+
+
+
+

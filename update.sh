@@ -1,7 +1,7 @@
 #!/bin/bash
 
 yum update -y
-yum install -y docker git
+yum install -y docker
 systemctl start docker.service
 systemctl enable docker.service
 echo "$(systemctl status docker.service)" > /tmp/log_docker.txt
