@@ -4,3 +4,6 @@ Criar EFS
 Criar instâncias
 Montagem de diretório EFS
 Criar um RDS
+
+
+Ver os nomes dos serviços (vpc, SG)

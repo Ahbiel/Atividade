@@ -187,4 +187,36 @@ Uma vez criado o Target group, vamos criar o nosso Load Balancer:
 - em Listeners e roteamento vamos selecionar o Target group que criamos anteriormente (TG-001), e deixaremos a porta padrão (http - 80)
 - Após isso, poderemos criar o nosso Load Balancer
 
+## Criando o Auto Scaling
 
+Após criar o Load Balancer, vamos criar o Auto Scaling Group para prover o escalonamento da nossa aplicação.
+
+Para isso, vamos:
+- Ir na seção **Auto Scaling** nos serviços EC2, e clicar em **Grupos Auto Scaling** e depois em **Criar Grupos do Auto Scaling**
+- Vamos atribuir um nome (ASG-001) e selecionar o modelo de execução que criamos anteriormente (Wordpress) 
+- **[IMPORTANTE]:** em rede, vamos selecionar a VPC criada anteriormente, e em **Zonas de disponibilidade e sub-redes** vamos selecionar APENAS as sub-redes privadas, para que as instâncias que forem criadas pelo Auto Scaling a partir do template, sejam criadas sem a possibilidade de serem acessadas públicamente - ou seja, serão instâncias privadas, na qual só teremos acesso via Bastion host ou pelo tráfego do Load Balancer.
+- Em **Balanceamento de carga**, vamos selecionar a opção **Anexar a um balanceador de carga existente** e selecionar o Target Group que criamos (as instâncias serão criadas e anexadas automaticamente ao Load Balancer), e o restante deixaremos como padrão
+- Em **Tamanho do grupo**, vamos colocar da seguinte forma:
+  - Capacidade desejada: 2
+  - Capacidade mínima: 1 
+  - Capacidade máxima: 3 
+- Temos a possibilidade de criar uma Políticas de escalabilidade, porém vamos pular essa parte.
+- Podemos adcionar uma notificação pelo SNS e criar etiquetas, porém vamos pular essas etapas também e criar o Auto Scaling
+
+Após criado, duas instâncias serão criadas, ambas em uma sub-rede privada. Após a criação, o Target Group irá verificar se as instâncias estão rodando conforme o esperado. Caso esteja, os status das instâncias serão healthy e o Load balancer estará pronto para ser usado.
+
+## Configuração do Wordpress
+
+Para acessarmos nossa aplicação, vamos no Load Balancer que criamos, e copiar o **Nome de DNS Completo**, e então abrir no navegador. Uma vez acessado, teremos a tela de idiomas, no qual escolheremos _inglês_. 
+
+Ao prosseguir, seremos incaminhado para a tela de boas vindas, na qual precisamos efetuar a instalação do wordpress. Para isso, colocaremos "wordpress" em todos os campos disponíveis (porém isso não é obrigatório) e então deremos continuidade a instalação.
+
+<img src="./images/wordpress.png"/>
+
+Após a instalação, teremos uma tela de sucesso, nos permitindo realizar o login dentro da aplicação do wordpress:
+
+<img src="./images/login.png"/>
+
+Após efetuar o login, teremos acesso a nossa aplicação wordpress como admin:
+
+<img src="./images/wordpressUrl.png"/>

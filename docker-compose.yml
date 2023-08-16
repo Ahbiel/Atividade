@@ -1,4 +1,4 @@
-version: "3.9"
+version: "3.8"
 services:
   wordpress:
     image: wordpress:latest
@@ -9,7 +9,7 @@ services:
       - 80:80
     restart: always
     environment:
-      - WORDPRESS_DB_HOST=wordpress.chv6tickgx5d.us-east-1.rds.amazonaws.com
+      - WORDPRESS_DB_HOST=wordpressdbase.chv6tickgx5d.us-east-1.rds.amazonaws.com
       - WORDPRESS_DB_USER=root
-      - WORDPRESS_DB_PASSWORD=wordpress
-      - WORDPRESS_DB_NAME=wordpress
+      - WORDPRESS_DB_PASSWORD=wordpressdbase
+      - WORDPRESS_DB_NAME=wordpressdbase
